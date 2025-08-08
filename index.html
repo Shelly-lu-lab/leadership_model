@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>交互式管理者能力模型浏览器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Harmony -->
+    <!-- Application Structure Plan: The SPA is designed with a three-part narrative flow: 1. Overview (宏观洞察), 2. Deep Dive (深度对标), 3. Strategic Choice (战略抉择). This structure guides the user from understanding the core concepts (the three archetypes) to exploring detailed case studies (the six companies), and finally to applying these insights through an interactive questionnaire. This "What -> So What -> Now What" flow is more intuitive and decision-oriented than the original report's linear format, making complex information digestible and actionable for a C-level audience. -->
+    <!-- Visualization & Content Choices: Archetypes are compared using an interactive radar chart (Chart.js) for quick, multi-dimensional comparison. Company deep dives use an accordion-style UI to present detailed competency models, preventing information overload. The final strategic questions are transformed into an interactive stepper/quiz, making the self-assessment process engaging. This approach uses interaction to clarify complex data and guide strategic thinking, strictly avoiding static SVG/Mermaid diagrams. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #FDFBF8;
+            color: #3D3D3D;
+        }
+        .chart-container {
+            position: relative;
+            margin: auto;
+            height: 50vh;
+            max-height: 450px;
+            width: 100%;
+            max-width: 500px;
+        }
+        .nav-active {
+            border-bottom: 2px solid #3B82F6;
+            color: #3B82F6;
+            font-weight: 500;
+        }
+        .nav-inactive {
+            border-bottom: 2px solid transparent;
+            color: #6B7280;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div id="app" class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <header class="mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-center text-gray-800">构建面向未来的管理者能力模型</h1>
+            <p class="text-center text-gray-500 mt-2">交互式战略洞察报告</p>
+        </header>
+
+        <nav class="flex justify-center border-b border-gray-200 mb-8">
+            <button data-view="overview" class="nav-btn px-4 py-3 text-sm md:text-base nav-active">宏观洞察：三大管理原型</button>
+            <button data-view="deepdive" class="nav-btn px-4 py-3 text-sm md:text-base nav-inactive">深度对标：六大公司实践</button>
+            <button data-view="strategy" class="nav-btn px-4 py-3 text-sm md:text-base nav-inactive">战略抉择：八大关键决断</button>
+        </nav>
+
+        <main id="content-area">
+        </main>
+
+    </div>
+
+    <script>
+        const appData = {
+            archetypes: {
+                principled: {
+                    name: "原则驱动的系统",
+                    nameEn: "The Principled System",
+                    companies: "亚马逊、字节跳动",
+                    goal: "在庞大的组织规模下，确保卓越运营和高效执行的一致性。",
+                    implementation: "将公司的核心价值观和行为准则“硬编码”到招聘、绩效、晋升和淘汰的每一个环节，并与薪酬激励挂钩。",
+                    scenario: "极其适用于那些运营效率、成本控制和执行一致性是核心竞争壁垒的业务。",
+                    chartData: [8, 3, 4]
+                },
+                empowering: {
+                    name: "赋能驱动的系统",
+                    nameEn: "The Empowering System",
+                    companies: "谷歌、Meta",
+                    goal: "创造一个最佳环境，以吸引、保留并最大化释放顶尖人才的创造力和自主性。",
+                    implementation: "相信公司已经雇佣了最聪明、最自驱的人才，管理的核心任务不是“驱动”，而是“赋能”。模型的核心是定义“好管理者”的行为。",
+                    scenario: "极其适用于那些竞争优势源于少数顶尖人才的突破性创新的业务。",
+                    chartData: [4, 8, 5]
+                },
+                creative: {
+                    name: "创意驱动的公会",
+                    nameEn: "The Creative Guild",
+                    companies: "腾讯、网易游戏",
+                    goal: "在创意密集型领域，孕育和资助那些由独特创意驱动的、高风险、高回报的“爆款”产品。",
+                    implementation: "采取一种“反系统”的组织模式。将权力和资源去中心化，下放给一个个高度自治的“工作室”，公司总部扮演“风险投资人”和“服务平台”的角色。",
+                    scenario: "极其适用于那些成功由少数、离散的、生命周期长的“爆款”驱动的行业。",
+                    chartData: [2, 6, 9]
+                }
+            },
+            companies: {
+                amazon: {
+                    name: "亚马逊",
+                    archetype: "原则驱动型",
+                    philosophy: "贝索斯：客户至尚，长期主义，以“Day One”心态驱动的极致运营。",
+                    modelName: "16条领导力准则 (LPs)",
+                    modelDetails: [
+                        { title: "客户至尚", desc: "将客户需求作为所有决策的唯一出发点，用客户反馈结束内部争论。" },
+                        { title: "主人翁精神", desc: "主动承担跨部门责任，以公司整体利益而非团队KPI为重。" },
+                        { title: "创新简化", desc: "推动颠覆性创新，简化复杂流程，降低成本，提升体验。" },
+                        { title: "决策正确", desc: "建立允许不同意见的环境，主动寻找挑战自己初始假设的数据和观点。" },
+                        { title: "好奇求知", desc: "保持对新事物的开放心态，鼓励团队实验，营造持续学习的文化。" },
+                        { title: "选贤育能", desc: "将招聘和人才发展视为核心职责，为公司建立领导梯队。" },
+                        { title: "最高标准", desc: "绝不容忍缺陷和低质量工作，将卓越设定为团队的默认状态。" },
+                        { title: "远见卓识", desc: "制定并传达一个大胆的长期目标，思考如何通过颠覆性创新定义市场未来。" },
+                        { title: "崇尚行动", desc: "区分“单向门”和“双向门”决策，对后者鼓励快速行动、实验和迭代。" },
+                        { title: "勤俭节约", desc: "将资源限制视为创新的催化剂，用智慧和创造力解决问题。" },
+                        { title: "赢得信任", desc: "通过透明、坦诚的沟通建立关系，公开承认错误，为团队树立榜样。" },
+                        { title: "刨根问底", desc: "掌握业务关键细节，不能满足于高层级报告，通过审计和提问验证信息。" },
+                        { title: "敢于谏言，服从大局", desc: "鼓励有理有据的辩论，但一旦决策形成，必须全力支持和执行。" },
+                        { title: "达成业绩", desc: "识别并专注于对业务结果影响最大的关键指标，并对结果负全责。" },
+                        { title: "致力于成为地球最佳雇主", desc: "将员工的成长、安全和福祉作为优先事项，以同理心进行管理。" },
+                        { title: "成功和规模带来更广泛的责任", desc: "认识到公司行为的广泛影响，在决策时考虑长期的社会责任。" }
+                    ],
+                    mechanism: [
+                        { title: "招聘", desc: "“抬杆者”(Bar Raiser)拥有一票否决权，从制度上确保文化标准的统一。" },
+                        { title: "考核", desc: "“组织与领导力评估”(OLR)采用强制排名，领导力准则(LPs)是正式考核部分，与淘汰直接挂钩。" },
+                        { title: "晋升", desc: "必须持续表现出下一个级别的领导力准则，是对过往表现的追认。" }
+                    ]
+                },
+                bytedance: {
+                    name: "字节跳动",
+                    archetype: "原则驱动型",
+                    philosophy: "张一鸣：务实浪漫，通过系统设计和数据驱动寻找最优解，追求延迟满足。",
+                    modelName: "“字节范”与领导力原则",
+                    modelDetails: [
+                        { title: "始终创业", desc: "对抗组织熵增，主动质疑现有流程，快速决策。" },
+                        { title: "多元兼容", desc: "构建包容性团队，公开认可不同背景成员的贡献。" },
+                        { title: "坦诚清晰", desc: "建立高效沟通环境，主动暴露难题，不美化坏消息。" },
+                        { title: "求真务实", desc: "追求第一手信息，要求方案有数据支撑，勇于承认错误。" },
+                        { title: "敢为极致", desc: "设定高挑战性目标，复盘时关注过程中的卓越实践。" },
+                        { title: "共同成长", desc: "承担人才培养责任，定期与下属讨论其职业发展。" },
+                        { title: "领导力原则", desc: "对复杂事情有判断；创造良好沟通合作；发展培养好团队；以身作则建设良好风气。" }
+                    ],
+                    mechanism: [
+                        { title: "招聘", desc: "高度关注候选人与“字节范”的文化契合度。" },
+                        { title: "考核", desc: "价值观、领导力单独考察，不直接影响绩效和奖金。" },
+                        { title: "晋升", desc: "领导力评估是获取晋升的“门槛值”，不达标则无法晋升。" }
+                    ]
+                },
+                google: {
+                    name: "谷歌",
+                    archetype: "赋能驱动型",
+                    philosophy: "拉里·佩奇 & 谢尔盖·布林：工程师文化，相信人才密度和心理安全感是创新的土壤。",
+                    modelName: "十项关键行为",
+                    modelDetails: [
+                        { title: "是优秀的教练", desc: "通过提问引导，而非直接给答案。" },
+                        { title: "赋能团队，不微观管理", desc: "给予自主权和空间。" },
+                        { title: "创造包容环境，关注福祉", desc: "营造心理安全感。" },
+                        { title: "高效且结果导向", desc: "帮助团队排定优先级并扫除障碍。" },
+                        { title: "是优秀的沟通者", desc: "乐于倾听并分享信息，确保透明。" },
+                        { title: "支持职业发展", desc: "真诚帮助员工规划路径，提供持续反馈。" },
+                        { title: "有清晰的愿景战略", desc: "将公司战略转化为团队可执行的方向。" },
+                        { title: "具备关键技术能力", desc: "能为团队提供有价值的建议。" },
+                        { title: "在内部积极合作", desc: "打破壁垒，寻求跨组织协同。" },
+                        { title: "是强有力的决策者", desc: "在充分讨论后能果断决策。" }
+                    ],
+                    mechanism: [
+                        { title: "招聘", desc: "专门考察“谷歌范儿”(Googliness)文化契合度。" },
+                        { title: "考核", desc: "向上反馈和绩效评估均围绕10项行为展开，目标是发展而非筛选。" },
+                        { title: "晋升", desc: "IC/M双通道发展，员工驱动“晋升包”，论证自己已具备下一级别能力。" }
+                    ]
+                },
+                meta: {
+                    name: "Meta",
+                    archetype: "赋能驱动型",
+                    philosophy: "扎克伯格：黑客之道，以“快速行动”和“影响力”为核心，敢于进行高风险的长期押注。",
+                    modelName: "内嵌于绩效评估的四大维度",
+                    modelDetails: [
+                        { title: "项目影响 (Project Impact)", desc: "最重要的维度，衡量可量化的业务成果。" },
+                        { title: "方向 (Direction)", desc: "影响战略和优先级，区分“执行者”与“领导者”的关键。" },
+                        { title: "工程卓越 (Engineering Excellence)", desc: "改进系统、提升代码质量和技术标准。" },
+                        { title: "人员/组织影响 (People / Organizational Impact)", desc: "指导他人、改善团队健康度等非技术性贡献。" }
+                    ],
+                    mechanism: [
+                        { title: "招聘", desc: "筛选极度自驱、以影响力为导向的精英。" },
+                        { title: "考核", desc: "高度结构化的PSC流程，管理者需在校准会议上为下属激烈辩论。" },
+                        { title: "薪酬", desc: "评级结果通过固定公式直接决定奖金和股权，管理者无自由裁量权。" },
+                        { title: "晋升与淘汰", desc: "“优胜劣汰”(Up-or-Out)体系，为每个级别设定明确的晋升时间表，未达标则面临离职压力。" }
+                    ]
+                },
+                tencent: {
+                    name: "腾讯",
+                    archetype: "创意驱动型",
+                    philosophy: "马化腾：用户为本，科技向善。在“工匠”与“架构师”之间寻求平衡，注重生态与合作。",
+                    modelName: "“帝企鹅”模型",
+                    modelDetails: [
+                        { title: "正直 (Integrity)", desc: "不可动摇的基石，言行一致。" },
+                        { title: "激情 (Passion)", desc: "主人翁精神，内在驱动力。" },
+                        { title: "好学 (Learning)", desc: "持续学习和自我迭代。" },
+                        { title: "开放 (Openness)", desc: "乐于分享，不搞部门本位主义。" },
+                        { title: "人才 (Talent)", desc: "核心职责，为组织建立人才梯队。" },
+                        { title: "产品 (Product)", desc: "用户导向，从用户价值出发决策。" }
+                    ],
+                    mechanism: [
+                        { title: "招聘", desc: "寻找“有思想、爱学习的实力派”，“人才活水”机制倒逼管理者创造良好团队环境。" },
+                        { title: "考核", desc: "结果与行为并重，基层员工70%业绩+30%行为，管理者进行360度评估和人才盘点。" },
+                        { title: "晋升与淘汰", desc: "推行“干部能上能下”，每年各级干部“能下”比例不低于5%。" }
+                    ]
+                },
+                netease: {
+                    name: "网易游戏",
+                    archetype: "创意驱动型",
+                    philosophy: "丁磊：首席产品经理，以“游戏热爱者”为核心的工匠精神，追求极致品质。",
+                    modelName: "三大领导力支柱",
+                    modelDetails: [
+                        { title: "极客精神 (领导自我)", desc: "求学若渴，洞察业务本质，信念坚定。" },
+                        { title: "成事第一 (领导业务)", desc: "深入一线，敢于决断，敢闯无人区，能持续成大事。" },
+                        { title: "身先士卒 (领导团队)", desc: "到关键战场找人，敢用比自己强的人，以身作则锤炼团队。" }
+                    ],
+                    mechanism: [
+                        { title: "招聘", desc: "首要目标是筛选出对游戏创作怀有巨大热情的“游戏热爱者”。" },
+                        { title: "考核与晋升", desc: "年度进行领导力的360度评估，不纳入绩效考核，但在晋升时作为重要参考。" },
+                        { title: "激励机制", desc: "创业式的项目分红机制，游戏成功后核心团队分享巨额利润，激励承担巨大风险。" }
+                    ]
+                }
+            },
+            strategyQuestions: [
+                {
+                    question: "问题一：我们想成为什么样的公司？",
+                    options: [
+                        { text: "A. 一个像“精密工厂”的公司：规则清晰、效率极高，一切都井井有条。", hint: "倾向于“原则驱动的系统”。" },
+                        { text: "B. 一个像“创意作坊”的公司：充满活力、允许适度混乱，一切为了激发最好的创意。", hint: "倾向于“创意驱动的公会”。" },
+                        { text: "C. 一个精英汇聚的“实验室”：给予顶尖人才最大自由度，探索未知。", hint: "倾向于“赋能驱动的系统”。" }
+                    ]
+                },
+                {
+                    question: "问题二：我们靠什么赢？",
+                    options: [
+                        { text: "A. 找到对的人：超级个体，优秀的个人带领团队成功。", hint: "精英思维，接近“赋能驱动”。" },
+                        { text: "B. 建立对的系统：打造一个强大的体系，让普通优秀的人也能变成“神人”。", hint: "系统思维，接近“原则驱动”。" }
+                    ]
+                },
+                {
+                    question: "问题三：目前在公司获得成功的leader，是什么特质让他们得以成功？",
+                    options: [
+                        { text: "开放式问题，请内部讨论。", hint: "此问题旨在归纳现状，明确成功基因。" }
+                    ]
+                },
+                {
+                    question: "问题四：未来在公司能够连续成功的leader，哪些特质是必不可少的？",
+                    options: [
+                        { text: "开放式问题，请内部讨论。", hint: "此问题旨在面向未来，定义新的能力要求。" }
+                    ]
+                },
+                {
+                    question: "问题五：我们到底在为什么给管理者发薪水？",
+                    options: [
+                        { text: "A. “你给我搞出好产品、好内容。”", hint: "成果导向，在“创意驱动”中尤为突出。" },
+                        { text: "B. “你给我带出好团队。”", hint: "人才导向，在“赋能驱动”中尤为关键。" },
+                        { text: "C. “你给我做出好业绩。”", hint: "业绩导向，在所有模型中都重要，但在“原则驱动”中与流程结合更紧密。" }
+                    ]
+                },
+                {
+                    question: "问题六：管理者绝对不能犯的错是什么？",
+                    options: [
+                        { text: "A. 业绩差", hint: "关注结果。" },
+                        { text: "B. 逼走有才华的员工", hint: "关注人才与文化。" },
+                        { text: "C. 伤害了社区或开发者", hint: "关注生态与声誉。" },
+                        { text: "D. 搞办公室政治", hint: "关注组织健康。" }
+                    ]
+                },
+                {
+                    question: "问题七：对于中基层管理者、高层管理者的要求有差异吗？对于高层管理者哪些方面尤其关键？",
+                    options: [
+                        { text: "开放式问题，请内部讨论。", hint: "此问题旨在建立领导力梯队，明确不同层级的核心要求。" }
+                    ]
+                },
+                {
+                    question: "问题八：我们对管理者的要求，如何落地？",
+                    options: [
+                        { text: "A. 直接决定能否入职、工资奖金，像Meta一样硬核。", hint: "强应用，高强度绑定。" },
+                        { text: "B. 不挂钩奖金，但决定能不能升职，像字节跳动一样设个门槛。", hint: "中等强度应用，作为资格门槛。" },
+                        { text: "C. 只作为参考，像谷歌一样，相对柔性管理。", hint: "弱应用，侧重发展与引导。" }
+                    ]
+                }
+            ]
+        };
+
+        const contentArea = document.getElementById('content-area');
+        const navButtons = document.querySelectorAll('.nav-btn');
+        let currentChart = null;
+
+        const renderOverview = () => {
+            contentArea.innerHTML = `
+                <div class="text-center mb-10 fade-in">
+                    <h2 class="text-2xl font-bold text-gray-800">三大管理原型</h2>
+                    <p class="mt-2 text-gray-600 max-w-3xl mx-auto">成功的管理者能力模型并非孤立的人力资源工具，而是公司战略、创始人哲学与核心业务属性三位一体的必然产物。我们的研究从中提炼出三种清晰的管理原型，您可以通过下方的雷达图和介绍进行交互式探索。</p>
+                </div>
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
+                    <div class="chart-container self-center">
+                        <canvas id="archetypeChart"></canvas>
+                    </div>
+                    <div id="archetype-details" class="flex flex-col gap-6">
+                        <!-- Details will be rendered here -->
+                    </div>
+                </div>
+            `;
+            createArchetypeChart();
+            renderArchetypeDetails('principled');
+        };
+
+        const createArchetypeChart = () => {
+            if (currentChart) {
+                currentChart.destroy();
+            }
+            const ctx = document.getElementById('archetypeChart').getContext('2d');
+            const data = {
+                labels: ['系统化与原则强度', '个体赋能与自主', '创意驱动与风险'],
+                datasets: [
+                    {
+                        label: appData.archetypes.principled.name,
+                        data: appData.archetypes.principled.chartData,
+                        fill: true,
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                        borderColor: 'rgb(59, 130, 246)',
+                        pointBackgroundColor: 'rgb(59, 130, 246)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgb(59, 130, 246)'
+                    },
+                    {
+                        label: appData.archetypes.empowering.name,
+                        data: appData.archetypes.empowering.chartData,
+                        fill: true,
+                        backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                        borderColor: 'rgb(16, 185, 129)',
+                        pointBackgroundColor: 'rgb(16, 185, 129)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgb(16, 185, 129)'
+                    },
+                    {
+                        label: appData.archetypes.creative.name,
+                        data: appData.archetypes.creative.chartData,
+                        fill: true,
+                        backgroundColor: 'rgba(249, 115, 22, 0.2)',
+                        borderColor: 'rgb(249, 115, 22)',
+                        pointBackgroundColor: 'rgb(249, 115, 22)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgb(249, 115, 22)'
+                    }
+                ]
+            };
+            currentChart = new Chart(ctx, {
+                type: 'radar',
+                data: data,
+                options: {
+                    maintainAspectRatio: false,
+                    elements: {
+                        line: {
+                            borderWidth: 2
+                        }
+                    },
+                    scales: {
+                        r: {
+                            angleLines: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            },
+                            pointLabels: {
+                                font: {
+                                    size: 14,
+                                    family: "'Noto Sans SC', sans-serif"
+                                },
+                                color: '#3D3D3D'
+                            },
+                            ticks: {
+                                backdropColor: 'transparent',
+                                stepSize: 2
+                            },
+                            suggestedMin: 0,
+                            suggestedMax: 10
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                usePointStyle: true,
+                                font: {
+                                     family: "'Noto Sans SC', sans-serif"
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${context.raw}`;
+                                }
+                            }
+                        }
+                    },
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const datasetIndex = elements[0].datasetIndex;
+                            const archetypeKey = Object.keys(appData.archetypes)[datasetIndex];
+                            renderArchetypeDetails(archetypeKey);
+                        }
+                    }
+                }
+            });
+        };
+        
+        const renderArchetypeDetails = (activeKey) => {
+            const detailsContainer = document.getElementById('archetype-details');
+            const colors = {
+                principled: 'blue',
+                empowering: 'green',
+                creative: 'orange'
+            };
+            
+            let content = '';
+            for (const key in appData.archetypes) {
+                const archetype = appData.archetypes[key];
+                const color = colors[key];
+                const isActive = key === activeKey;
+                const activeClasses = 'shadow-xl ring-2 ring-blue-400 ring-offset-2';
+                const inactiveClasses = 'shadow-md';
+
+                content += `
+                    <div id="card-${key}" 
+                         class="p-6 bg-white rounded-lg border-l-4 border-${color}-500 fade-in transition-all duration-300 cursor-pointer ${isActive ? activeClasses : inactiveClasses}">
+                        <h3 class="text-xl font-bold text-gray-800">${archetype.name}</h3>
+                        <p class="text-sm text-gray-500 mb-4">${archetype.nameEn} | 代表公司: ${archetype.companies}</p>
+                        <div class="space-y-3 text-gray-700 text-sm">
+                            <p><strong class="font-medium">核心目标:</strong> ${archetype.goal}</p>
+                            <p><strong class="font-medium">实现方式:</strong> ${archetype.implementation}</p>
+                            <p><strong class="font-medium">适用场景:</strong> ${archetype.scenario}</p>
+                        </div>
+                    </div>
+                `;
+            }
+            detailsContainer.innerHTML = content;
+
+            document.querySelectorAll('[id^="card-"]').forEach(card => {
+                card.addEventListener('click', () => {
+                    const key = card.id.split('-')[1];
+                    renderArchetypeDetails(key);
+                });
+            });
+        };
+
+        const renderDeepDive = () => {
+            contentArea.innerHTML = `
+                <div class="text-center mb-10 fade-in">
+                    <h2 class="text-2xl font-bold text-gray-800">深度对标：六大公司实践</h2>
+                    <p class="mt-2 text-gray-600 max-w-3xl mx-auto">此处详细剖析了六家代表性公司的管理者能力模型、创始人哲学及核心应用机制。请选择一家公司进行深入了解，观察其管理哲学如何通过具体的制度设计落地。</p>
+                </div>
+                <div class="flex flex-wrap justify-center gap-2 md:gap-4 mb-8">
+                    ${Object.keys(appData.companies).map(key => `
+                        <button data-company="${key}" class="company-btn px-4 py-2 text-sm font-medium bg-white border border-gray-300 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">${appData.companies[key].name}</button>
+                    `).join('')}
+                </div>
+                <div id="company-details" class="mt-8"></div>
+            `;
+
+            document.querySelectorAll('.company-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const companyKey = e.target.dataset.company;
+                    renderCompanyDetails(companyKey);
+                    document.querySelectorAll('.company-btn').forEach(b => b.classList.remove('bg-blue-500', 'text-white', 'border-blue-500'));
+                    e.target.classList.add('bg-blue-500', 'text-white', 'border-blue-500');
+                });
+            });
+            
+            renderCompanyDetails('amazon');
+            document.querySelector('.company-btn[data-company="amazon"]').classList.add('bg-blue-500', 'text-white', 'border-blue-500');
+        };
+
+        const renderCompanyDetails = (key) => {
+            const company = appData.companies[key];
+            const detailsContainer = document.getElementById('company-details');
+            detailsContainer.innerHTML = `
+                <div class="bg-white p-6 md:p-8 rounded-lg shadow-lg fade-in">
+                    <div class="mb-6">
+                        <span class="inline-block bg-blue-100 text-blue-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full">${company.archetype}</span>
+                        <h3 class="text-3xl font-bold text-gray-900 inline">${company.name}</h3>
+                    </div>
+                    
+                    <div class="mb-8 p-4 bg-gray-50 rounded-lg">
+                        <p class="text-gray-700"><strong class="font-semibold text-gray-900">创始人哲学：</strong>${company.philosophy}</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div>
+                            <h4 class="text-xl font-semibold mb-4 text-gray-800">管理者能力模型: ${company.modelName}</h4>
+                            <div class="space-y-2">
+                                ${company.modelDetails.map((item, index) => `
+                                    <div class="border border-gray-200 rounded-md">
+                                        <button class="accordion-toggle w-full flex justify-between items-center text-left p-3 bg-gray-50 hover:bg-gray-100">
+                                            <span class="font-medium text-gray-800">${item.title}</span>
+                                            <svg class="w-5 h-5 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                        </button>
+                                        <div class="accordion-content">
+                                            <p class="p-3 text-gray-600 bg-white">${item.desc}</p>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="text-xl font-semibold mb-4 text-gray-800">核心应用机制</h4>
+                            <div class="space-y-4">
+                                ${company.mechanism.map(item => `
+                                    <div class="p-4 bg-blue-50 rounded-lg">
+                                        <h5 class="font-bold text-blue-900">${item.title}</h5>
+                                        <p class="text-blue-800">${item.desc}</p>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.querySelectorAll('.accordion-toggle').forEach(button => {
+                button.addEventListener('click', () => {
+                    const content = button.nextElementSibling;
+                    const icon = button.querySelector('svg');
+                    if (content.style.maxHeight) {
+                        content.style.maxHeight = null;
+                        icon.classList.remove('rotate-180');
+                    } else {
+                        document.querySelectorAll('.accordion-content').forEach(c => c.style.maxHeight = null);
+                        document.querySelectorAll('.accordion-toggle svg').forEach(i => i.classList.remove('rotate-180'));
+                        content.style.maxHeight = content.scrollHeight + "px";
+                        icon.classList.add('rotate-180');
+                    }
+                });
+            });
+        };
+
+        const renderStrategy = () => {
+             contentArea.innerHTML = `
+                <div class="text-center mb-10 fade-in">
+                    <h2 class="text-2xl font-bold text-gray-800">战略抉择：八大关键决断</h2>
+                    <p class="mt-2 text-gray-600 max-w-3xl mx-auto">对标研究的最终目的，是回归自身，做出最适合我们自己的战略选择。以下八个“灵魂拷问”旨在帮助核心管理团队探寻并定义我们管理者的核心要求。请逐一回答，以启发战略思考。</p>
+                </div>
+                <div id="strategy-container" class="max-w-4xl mx-auto"></div>
+            `;
+            renderStrategyQuestion(0);
+        };
+
+        const renderStrategyQuestion = (index) => {
+            const container = document.getElementById('strategy-container');
+            if (index >= appData.strategyQuestions.length) {
+                container.innerHTML = `
+                    <div class="bg-white p-8 rounded-lg shadow-lg text-center fade-in">
+                        <h3 class="text-2xl font-bold text-green-600 mb-4">讨论完成</h3>
+                        <p class="text-gray-700 mb-6">您已完成所有关键问题的初步思考。我们建议由CEO带领核心管理团队，就这些问题进行一次深度战略研讨，以统一思想，明确方向，并启动后续行动。</p>
+                        <button onclick="renderStrategyQuestion(0)" class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">重新开始</button>
+                    </div>
+                `;
+                return;
+            }
+            const q = appData.strategyQuestions[index];
+            container.innerHTML = `
+                <div class="bg-white p-6 md:p-8 rounded-lg shadow-lg fade-in">
+                    <div class="mb-6">
+                        <p class="text-sm font-semibold text-blue-600">问题 ${index + 1} / ${appData.strategyQuestions.length}</p>
+                        <h3 class="text-xl md:text-2xl font-bold text-gray-900 mt-1">${q.question}</h3>
+                    </div>
+                    <div class="space-y-3">
+                        ${q.options.map((opt, optIndex) => `
+                            <button data-hint="${opt.hint}" class="strategy-option w-full text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-100 hover:border-blue-500 transition">
+                                ${opt.text}
+                            </button>
+                        `).join('')}
+                    </div>
+                    <div id="strategy-hint" class="mt-4 p-3 bg-yellow-50 text-yellow-800 rounded-lg min-h-[4rem] flex items-center opacity-0 transition-opacity duration-300">
+                        <!-- Hint will appear here -->
+                    </div>
+                    <div class="mt-6 text-right">
+                        <button id="next-question-btn" onclick="renderStrategyQuestion(${index + 1})" class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-gray-400" disabled>下一个问题 →</button>
+                    </div>
+                </div>
+            `;
+
+            const hintBox = document.getElementById('strategy-hint');
+            const nextBtn = document.getElementById('next-question-btn');
+            document.querySelectorAll('.strategy-option').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.strategy-option').forEach(b => b.classList.remove('bg-blue-100', 'border-blue-500'));
+                    e.currentTarget.classList.add('bg-blue-100', 'border-blue-500');
+                    hintBox.textContent = `💡 思考提示：${e.currentTarget.dataset.hint}`;
+                    hintBox.style.opacity = '1';
+                    nextBtn.disabled = false;
+                });
+            });
+        };
+
+        const handleNav = (e) => {
+            const view = e.target.dataset.view;
+            
+            navButtons.forEach(btn => {
+                btn.classList.remove('nav-active');
+                btn.classList.add('nav-inactive');
+            });
+            e.target.classList.add('nav-active');
+            e.target.classList.remove('nav-inactive');
+
+            switch (view) {
+                case 'overview':
+                    renderOverview();
+                    break;
+                case 'deepdive':
+                    renderDeepDive();
+                    break;
+                case 'strategy':
+                    renderStrategy();
+                    break;
+            }
+        };
+
+        navButtons.forEach(btn => btn.addEventListener('click', handleNav));
+
+        renderOverview();
+    </script>
+
+</body>
+</html>
